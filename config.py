@@ -23,3 +23,7 @@ class Config:
     MTN_MOMO_TARGET_ENVIRONMENT = os.environ.get("MTN_MOMO_TARGET_ENVIRONMENT", "sandbox")
     MTN_MOMO_CURRENCY = os.environ.get("MTN_MOMO_CURRENCY", "RWF")
     GRACE_PERIOD_MINUTES = int(os.environ.get("GRACE_PERIOD_MINUTES", "15"))
+
+    # Africa's Talking SMS
+    AFRICASTALKING_API_KEY = os.environ.get("AFRICASTALKING_API_KEY", "")
+    AFRICASTALKING_USERNAME = os.environ.get("AFRICASTALKING_USERNAME", "sandbox")
