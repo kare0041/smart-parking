@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
+
+# MCP config
+.mcp.json
+
+# Screenshots & generated PDF (build artifacts)
+screenshots/
+generate_pdf.py
+SmartPark_Rwanda_App_Documentation.pdf

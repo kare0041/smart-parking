@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Status — SmartPark Rwanda{% endblock %}
+
+{% block content %}
+<div class="mt-2 space-y-6 text-center">
+
+    <!-- Phone display -->
+    <p class="text-gray-600 text-sm">
+        Waiting for approval on <span class="font-mono font-semibold">{{ phone_number }}</span>
+    </p>
+
+    <!-- Status area -->
+    <div id="status-area">
+        <!-- Spinner -->
+        <div id="spinner" class="flex justify-center">
+            <svg class="animate-spin h-16 w-16 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>
+
+        <!-- Status message -->
+        <p id="status-message" class="text-gray-500 mt-4">Checking payment status...</p>
+    </div>
+
+    <!-- Result area (hidden initially) -->
+    <div id="result-area" class="hidden space-y-4">
+        <!-- Icon placeholder -->
+        <div id="result-icon" class="flex justify-center"></div>
+        <p id="result-message" class="text-lg font-semibold"></p>
+        <p id="result-detail" class="text-sm text-gray-500"></p>
+        <div id="result-actions"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var ref = "{{ transaction_reference }}";
+    var sessionId = {{ session_id }};
+    var attempts = 0;
+    var maxAttempts = 12;
+
+    var statusArea = document.getElementById('status-area');
+    var spinner = document.getElementById('spinner');
+    var statusMessage = document.getElementById('status-message');
+    var resultArea = document.getElementById('result-area');
+    var resultIcon = document.getElementById('result-icon');
+    var resultMessage = document.getElementById('result-message');
+    var resultDetail = document.getElementById('result-detail');
+    var resultActions = document.getElementById('result-actions');
+
+    var intervalId = null;
+
+    function showResult(icon, message, detail, actions) {
+        statusArea.classList.add('hidden');
+        resultArea.classList.remove('hidden');
+        resultIcon.innerHTML = icon;
+        resultMessage.textContent = message;
+        resultDetail.textContent = detail || '';
+        resultActions.innerHTML = actions || '';
+    }
+
+    var greenCheck = '<svg class="h-20 w-20 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+    var redX = '<svg class="h-20 w-20 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+    var tryAgainBtn = '<a href="/pay/' + sessionId + '" class="inline-block mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">Try Again</a>';
+
+    function poll() {
+        attempts++;
+        statusMessage.textContent = 'Checking payment status... (attempt ' + attempts + ')';
+
+        fetch('/pay/api/status/' + ref)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success === true) {
+                    clearInterval(intervalId);
+                    var graceEnd = '';
+                    if (data.grace_period_end) {
+                        var dt = new Date(data.grace_period_end);
+                        graceEnd = 'Please exit by ' + dt.toLocaleString('en-GB', {
+                            timeZone: 'Africa/Kigali',
+                            hour: '2-digit', minute: '2-digit',
+                            day: 'numeric', month: 'short'
+                        });
+                    }
+                    showResult(greenCheck, 'Payment Confirmed!', graceEnd, '');
+                    setTimeout(function() {
+                        window.location.href = '/session/' + sessionId;
+                    }, 3000);
+                } else if (data.success === false) {
+                    clearInterval(intervalId);
+                    showResult(redX, 'Payment Failed', data.reason || 'The payment was not completed.', tryAgainBtn);
+                }
+                // success === null means still pending, keep polling
+            })
+            .catch(function() {
+                // Network error, keep trying
+            });
+
+        if (attempts >= maxAttempts) {
+            clearInterval(intervalId);
+            showResult(
+                '<svg class="h-20 w-20 text-yellow-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                'Payment Timed Out',
+                'We did not receive a confirmation in time. The payment may still be processing.',
+                tryAgainBtn
+            );
+        }
+    }
+
+    // Start polling
+    poll();
+    intervalId = setInterval(poll, 3000);
+})();
+</script>
+{% endblock %}
